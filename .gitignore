@@ -1,0 +1,17 @@
+# OMP-local runtime state
+agent.db*
+history.db*
+models.db*
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+sessions/
+blobs/
+cache/
+terminal-sessions/
+last-changelog-version
+install-id
+
+# Credentials and local environment
+.env
+.env.*
