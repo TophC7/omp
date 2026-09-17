@@ -1,0 +1,76 @@
+# Glossary — Web Development with Django 6
+
+- **AdminSite** — Django's administrative site container class managing registered `ModelAdmin` instances and global admin views (Ch 4, Ch 10).
+- **App (Application)** — A modular, portable Python package containing models, views, templates, and migrations dedicated to a single functional domain (Ch 1).
+- **ASGI (Asynchronous Server Gateway Interface)** — The Python standard for asynchronous web servers (Uvicorn, Daphne) supporting WebSockets and async views (Ch 15).
+- **AuthenticationMiddleware** — Middleware that associates an authenticated `User` object or `AnonymousUser` with the incoming `request` object (Ch 9).
+- **Batteries-Included** — Django's architectural philosophy of bundling an ORM, admin, auth, templating, and forms into the core framework without requiring third-party libraries (Ch 1).
+- **Bound Form** — A form instance associated with submitted request data (`request.POST` or `request.GET`), capable of executing validation (Ch 6).
+- **bulk_create()** — QuerySet method inserting a list of model instances into the database using a single SQL `INSERT` statement (Ch 2).
+- **bulk_update()** — QuerySet method updating specified fields across multiple model instances with a single SQL query (Ch 2).
+- **BytesIO** — Python standard library in-memory byte buffer used for dynamically generating binary files (PDF, Excel, ZIP) without disk I/O (Ch 13).
+- **Class-Based View (CBV)** — An object-oriented view class grouping HTTP method handling into dedicated class methods (`get()`, `post()`) (Ch 3, Ch 11).
+- **cleaned_data** — Dictionary populated with type-coerced, validated Python objects after a form successfully executes `is_valid()` (Ch 6, Ch 7).
+- **collectstatic** — Management command that gathers static assets from all apps and `STATICFILES_DIRS` into `STATIC_ROOT` for production (Ch 5).
+- **Command-Query Separation (CQS)** — Principle stating that an action should either mutate state or return data, but never both (Ch 12).
+- **Content-Disposition** — HTTP header indicating whether a response should be displayed `inline` or downloaded as an `attachment` with a filename (Ch 13).
+- **CSRF (Cross-Site Request Forgery)** — Security exploit mitigated by Django's `CsrfViewMiddleware` and `{% csrf_token %}` template tags on POST forms (Ch 6).
+- **DetailView** — Generic class-based view designed to query and render a single model instance using primary key or slug lookups (Ch 11).
+- **Django REST Framework (DRF)** — Toolkit for building stateless, standard-compliant RESTful web APIs on top of Django models (Ch 12).
+- **DTL (Django Template Language)** — Django's built-in templating syntax featuring variables (`{{ }}`), tags (`{% %}`), and filters (`|`) (Ch 1, Ch 3).
+- **FieldFile** — Proxy object returned when accessing a `FileField` or `ImageField` on a model, providing `.url`, `.path`, and `.delete()` methods (Ch 8).
+- **FileField** — Model field that uploads and stores binary files to a storage backend while saving the relative path string in the database (Ch 8).
+- **findstatic** — Management command for debugging and locating the exact on-disk path from which a static asset resolves (Ch 5).
+- **ForeignKey** — Model relationship field creating a many-to-one link to another model, requiring an explicit `on_delete` rule (Ch 2).
+- **Function-Based View (FBV)** — Explicit Python function accepting an `HttpRequest` and returning an `HttpResponse` (Ch 1, Ch 3).
+- **get_object_or_404** — Shortcut helper that queries a model using `.get()` and automatically raises an `Http404` exception if missing (Ch 3).
+- **Gunicorn** — Pre-fork WSGI application server used in production to execute Python web processes (Ch 15).
+- **HSTS (HTTP Strict Transport Security)** — Security response header instructing browsers to connect exclusively via HTTPS (Ch 15).
+- **HttpRequest** — Object created by Django for each incoming request containing headers, method, query parameters, user, and session data (Ch 1).
+- **HttpResponse** — Object returned by views containing status codes, headers, and rendered payload content (Ch 1).
+- **ImageField** — Model field subclassing `FileField` that validates image formats using Pillow and tracks dimensions (Ch 8).
+- **Inclusion Tag** — Custom template tag that computes context data and renders an embedded HTML component partial (Ch 11).
+- **InlineModelAdmin** — Admin interface feature allowing child records to be edited directly within a parent model's change form (`TabularInline`, `StackedInline`) (Ch 10).
+- **INSTALLED_APPS** — Settings list defining active apps, required for discovering models, migrations, static files, and templates (Ch 1).
+- **Lazy Evaluation** — Deferring database query execution until a QuerySet is explicitly evaluated by iteration or indexing (Ch 2).
+- **ListView** — Generic class-based view for querying, paginating, and rendering a collection of model instances (Ch 11).
+- **LoginRequiredMixin** — Class-based view mixin that enforces user authentication before view dispatch (Ch 11).
+- **makemigrations** — Command generating declarative Python migration files from changes detected in `models.py` (Ch 2).
+- **ManifestStaticFilesStorage** — Static storage backend appending MD5 content hashes to filenames for cache-busting (Ch 5).
+- **MEDIA_ROOT** — Absolute filesystem directory where runtime user-uploaded files are stored (Ch 8).
+- **MEDIA_URL** — Public URL prefix used to access user-uploaded media files (Ch 8).
+- **migrate** — Command applying unapplied schema migrations to the database (Ch 2).
+- **Model** — A Python class inheriting `models.Model` defining database schema columns, constraints, and methods (Ch 1, Ch 2).
+- **ModelAdmin** — Representation of a model in the Django Admin managing changelists, filters, and edit forms (Ch 4, Ch 10).
+- **ModelForm** — Form class automatically generating fields, widgets, and validation from an existing model class (Ch 7).
+- **ModelSerializer** — DRF serializer automatically generating serialization fields and validation from an existing model class (Ch 12).
+- **ModelViewSet** — DRF class consolidating complete CRUD API logic (`list`, `create`, `retrieve`, `update`, `destroy`) for a model (Ch 12).
+- **MVT (Model-View-Template)** — Django's core architectural pattern separating data, request processing, and presentation layout (Ch 1).
+- **on_delete** — Mandatory argument for relational fields defining referential action on parent row deletion (`CASCADE`, `PROTECT`, `SET_NULL`) (Ch 2).
+- **Path Converter** — Type-coercing pattern matcher in URL patterns (`<int:pk>`, `<slug:slug>`, `<uuid:id>`) (Ch 3).
+- **Pillow** — Python imaging library required by Django for validating and manipulating `ImageField` uploads (Ch 8).
+- **prefetch_related** — QuerySet optimization executing separate batched lookup queries for multi-valued relationships (Ch 2).
+- **Project** — The entire Django deployment instance housing global `settings.py`, root `urls.py`, and WSGI/ASGI entrypoints (Ch 1).
+- **Q Object** — Encapsulation of SQL conditions allowing `AND`, `OR`, and `NOT` logic in QuerySet filters (Ch 2).
+- **QueryDict** — Specialized dictionary-like class in `request.GET` and `request.POST` handling multiple values per key (Ch 1, Ch 6).
+- **QuerySet** — Lazy collection of database queries representing objects from the database (Ch 2).
+- **render()** — Shortcut combining template loading, context injection, and `HttpResponse` instantiation (Ch 1, Ch 3).
+- **RequestFactory** — Test utility for creating raw `HttpRequest` instances to test views in total isolation from middleware (Ch 14).
+- **reverse()** — Function dynamically generating URL paths from view names and parameters (Ch 3).
+- **select_related** — QuerySet optimization performing SQL `JOIN`s to pre-fetch single-valued foreign keys in one query (Ch 2).
+- **SessionMiddleware** — Middleware that assigns a `Session` dictionary to `request.session` based on a signed cookie (Ch 9).
+- **SimpleTestCase** — Test case class that explicitly disallows database queries for maximum unit test speed (Ch 14).
+- **STATIC_ROOT** — The directory where `collectstatic` compiles all static files for production deployment (Ch 5).
+- **STATIC_URL** — The public URL prefix prepended to all static asset references (Ch 5).
+- **STATICFILES_DIRS** — List of additional filesystem directories containing developer-authored static files (Ch 5).
+- **StreamingHttpResponse** — Response class that streams chunked content from an iterator to prevent memory exhaustion (Ch 13).
+- **Template Tag** — DTL directive (`{% %}`) providing logic, loops, URL reversal, or component inclusion in templates (Ch 1, Ch 3, Ch 11).
+- **TemplateView** — Generic class-based view for rendering a static or simple contextual HTML template (Ch 3, Ch 11).
+- **TestCase** — Standard test case executing each test method within an atomic database transaction rolled back on completion (Ch 14).
+- **TokenAuthentication** — DRF authentication mechanism verifying clients via static HTTP `Authorization: Token <key>` headers (Ch 12).
+- **TransactionTestCase** — Test case resetting the database via `TRUNCATE` tables, required for testing transaction commits (Ch 14).
+- **upload_to** — Model attribute on `FileField`/`ImageField` specifying relative storage subdirectories or dynamic path callables (Ch 8).
+- **ValidationError** — Exception raised by validators and form cleaning methods to signal invalid input without crashing (Ch 7).
+- **WhiteNoise** — Middleware enabling Python web servers (Gunicorn) to serve static files with compression and caching (Ch 5, Ch 15).
+- **Widget** — Python class responsible for rendering HTML form input elements and extracting raw data (Ch 6, Ch 7).
+- **WSGI (Web Server Gateway Interface)** — Standard synchronous protocol for web servers communicating with Python web apps (Ch 15).

@@ -1,0 +1,52 @@
+# Glossary — Architecture Patterns with Python
+
+- **Abstraction** — A simplified interface that encapsulates behavior, hiding lower-level data structures and mechanics behind expressive intent (Ch 0, Ch 3).
+- **Active Record** — An anti-pattern in complex domains where entities inherit directly from database ORM models, coupling domain logic to database schemas (Ch 2).
+- **Aggregate** — A cluster of associated domain entities and value objects treated as an indivisible unit for state changes, bounded by an Aggregate Root (Ch 7).
+- **Aggregate Root** — The single master entity through which all external code interacts with an aggregate's internal state to enforce invariants (Ch 7).
+- **Anemic Domain Model** — An anti-pattern where domain classes are dumb data bags with getters/setters while business logic lives in external procedural services (Ch 1).
+- **Architecture Tax** — Allocating a portion of engineering capacity (~10–20%) during feature development to incrementally pay down technical debt and build domain boundaries (Ch 14).
+- **Asynchronous Messaging** — Integrating distributed services via message brokers, decoupling publishers and consumers in time and execution (Ch 11).
+- **At-Least-Once Delivery** — A message broker delivery guarantee where network retries may cause duplicate messages, necessitating idempotent handlers (Ch 11).
+- **Big Ball of Mud** — A software system lacking clear structural boundaries, where UI, business logic, and I/O are tangled together and everything depends on everything else (Ch 0, Ch 3).
+- **Bootstrapper (Composition Root)** — A dedicated initialization script (`bootstrap.py`) that wires adapters, initializes mappers, and injects dependencies at application startup (Ch 13).
+- **Bounded Context** — A linguistic and structural boundary within which a particular domain model applies; different contexts define their own models of shared concepts (Ch 7).
+- **Classical / Imperative Mapping** — SQLAlchemy's mapping technique that binds pure Python domain classes to separate table schemas without inheriting from ORM base classes (Ch 2).
+- **Command** — A message expressing imperative intent sent to a single recipient that must fail noisily and fast if an error occurs (Ch 10).
+- **Command-Query Responsibility Segregation (CQRS)** — Separating data mutation pathways (Commands via Aggregates) from data retrieval pathways (Queries via View Models) (Ch 12).
+- **Command-Query Separation (CQS)** — The principle that a method should either change state or return data, but never both (Ch 12).
+- **Connascence** — A software metric describing the strength and type of coupling between components, ranging from strong execution coupling to weak name coupling (Ch 11).
+- **Consistency Boundary** — The boundary within an aggregate where business invariants must be maintained synchronously and atomically at the end of every transaction (Ch 7).
+- **Context Manager** — A Python language construct (`with` statement) managing resource setup (`__enter__`) and teardown/rollback (`__exit__`) (Ch 6).
+- **Coupling** — The degree of mutual dependency between components; when changing one component risks breaking another (Ch 3).
+- **Cohesion** — The degree to which elements within a single component collaborate toward a single, focused responsibility (Ch 3).
+- **Declarative Mapping** — Traditional ORM mapping where domain classes inherit directly from framework classes (e.g. `Base = declarative_base()`), coupling models to storage (Ch 2).
+- **Dependency Inversion Principle (DIP)** — The rule that high-level modules should not depend on low-level modules; both should depend on abstractions (Ch 0, Ch 2).
+- **Domain** — The real-world problem space and business workflows that an application automates or supports (Ch 1).
+- **Domain Event** — An immutable record of a significant business occurrence that has already happened, used to trigger decoupled secondary side effects (Ch 8).
+- **Domain Exception** — A custom exception class expressing a specific domain rule violation (e.g. `OutOfStock`) (Ch 1).
+- **Domain Model** — The core software representation of the business problem space, free of external framework and database dependencies (Ch 1).
+- **Domain Service** — A pure business calculation or operation that does not naturally belong to a single entity, implemented as a standalone function (Ch 1, Ch 4).
+- **Entity** — A domain object defined by an enduring identity that outlives its mutable attributes over time (Ch 1).
+- **Eventual Consistency** — A consistency model where storage replicas or secondary read projections update asynchronously rather than immediately (Ch 7, Ch 11, Ch 12).
+- **Fake** — A working in-memory test double (e.g., `FakeRepository`, `FakeUnitOfWork`) that avoids mocking frameworks while providing instant test execution (Ch 2, Ch 4, Ch 6).
+- **Functional Core, Imperative Shell (FCIS)** — An architectural pattern dividing systems into pure decision logic (Functional Core) and outer I/O side effects (Imperative Shell) (Ch 3).
+- **High Gear / Low Gear TDD** — Shifting between writing low-level tests against domain entities (low gear) and high-level tests against the service layer (high gear) (Ch 5).
+- **Idempotency** — The property of an operation producing the exact same state regardless of whether it is executed once or multiple times (Ch 1, Ch 11).
+- **Invariant** — A business condition or rule that must always hold true whenever an operation completes (Ch 1, Ch 7).
+- **Message Bus** — An in-memory routing engine that dispatches incoming commands to their single handler and broadcasts events to subscribed listeners (Ch 8, Ch 9, Ch 10).
+- **Optimistic Concurrency Control** — A concurrency technique using version numbers on aggregate roots to detect race conditions without database locks (Ch 7).
+- **Outbox Pattern** — Writing outgoing integration events to a database table within the main business transaction to ensure reliable broker publishing (Ch 11).
+- **Persistence Ignorance** — The architectural property where domain objects have no awareness of how, where, or whether they are stored durably (Ch 2).
+- **Ports and Adapters (Hexagonal Architecture)** — Decoupling application core logic (port interfaces) from external infrastructure (entrypoints and secondary adapters) (Ch 2, Ch 14).
+- **Primary Adapter (Driving / Entrypoint)** — A component that drives the application from the outside, such as a web API or queue consumer (Ch 14).
+- **Read Model (Projection)** — A denormalized data structure or database table tailored exclusively for query performance (Ch 12).
+- **Repository Pattern** — A simplifying abstraction over persistent storage that presents the illusion of an in-memory collection (Ch 2).
+- **Secondary Adapter (Driven / Outbound)** — A component driven by the application to interact with external I/O, such as a database repository or email gateway (Ch 14).
+- **Service Layer (Application Services)** — The orchestration layer defining application use cases and coordinating repositories, domain models, and transactions (Ch 4).
+- **Situated Software** — Software running for extended periods in physical environments where unexpected real-world disruptions routinely occur (Ch 9).
+- **Test Glue** — The extent to which tests couple to private internal details, increasing the friction and cost of refactoring (Ch 5).
+- **Ubiquitous Language** — A shared, rigorous vocabulary between domain experts and software developers, embedded directly in code and tests (Ch 1).
+- **Unit of Work (UoW)** — The abstraction managing atomic database transactions, session lifecycles, and event publishing (Ch 6, Ch 8).
+- **Value Object** — An immutable domain object identified entirely by the values of its attributes, possessing no independent identity (Ch 1).
+- **Write Model** — The domain model and aggregate roots responsible for enforcing invariants and modifying state (Ch 12).
