@@ -1,0 +1,59 @@
+# Glossary of HTML & CSS Terms
+
+Alphabetical index of core concepts, specifications, elements, properties, and runtime APIs from *HTML and CSS: The Comprehensive Guide* by Jürgen Wolf.
+
+---
+
+- **Absolute Positioning** — Positioning scheme removing an element from normal flow and offsetting it relative to its nearest positioned ancestor (Ch 12).
+- **Ajax (Asynchronous JavaScript and XML)** — Architecture combining background HTTP requests (`XMLHttpRequest` / `fetch`) with dynamic DOM mutation without reloading the page (Ch 20).
+- **Alternate Box Model (`border-box`)** — Box-sizing model where declared `width` and `height` include padding and borders, preventing layout expansion (Ch 11).
+- **Arrow Function** — Concise ES6 function syntax `() => {}` that inherits its `this` context lexically from the surrounding scope (Ch 18).
+- **Attribute** — Name-value configuration pair declared exclusively inside an HTML opening tag to modify element behavior or provide metadata (Ch 2).
+- **Block Formatting Context (BFC)** — Independent layout region in which block boxes are laid out and vertical margins do not collapse outside the boundary (Ch 11).
+- **Blink** — Open-source browser layout engine developed by Google powering Chrome, Edge, Brave, and Opera (Ch 1).
+- **Breakpoint** — Viewport width threshold declared in a media query where layout styles reflow to fit changing screen dimensions (Ch 13).
+- **Cascade** — The deterministic algorithm sorting conflicting CSS declarations by origin, importance (`!important`), specificity, and source order (Ch 10).
+- **Character Entity** — Escape sequence (`&name;` or `&#number;`) used to render reserved HTML markup characters or typographic symbols safely (Ch 4).
+- **Class Selector** — CSS selector matching elements possessing a given class token (`.classname`) with specificity weight (0, 0, 1, 0) (Ch 9).
+- **Classic Box Model (`content-box`)** — Default W3C box model where padding and borders add to the declared `width`, expanding total rendered size (Ch 11).
+- **Combinator** — CSS character (` `, `>`, `+`, `~`) connecting two selectors to express hierarchical relationships (descendant, child, adjacent, general sibling) (Ch 9).
+- **Cumulative Layout Shift (CLS)** — Web Vitals metric measuring unexpected visual movement of elements during page load; prevented by setting explicit media dimensions (Ch 6).
+- **Datalist (`<datalist>`)** — HTML5 element containing recommended option values linked to an `<input>` via the `list` attribute (Ch 7).
+- **Declaration Block** — The curly-bracketed section `{ property: value; }` of a CSS ruleset containing styling directives (Ch 8).
+- **DOCTYPE (`<!doctype html>`)** — Prologue declaration instructing the browser rendering engine to parse the document in modern Standards Mode (Ch 2).
+- **Document Object Model (DOM)** — Tree-structured in-memory object representation of an HTML document created by the browser and manipulated via JavaScript (Ch 2, Ch 19).
+- **Event Bubbling** — The propagation phase where an event triggered on a child node ascends through parent ancestors up to `document` and `window` (Ch 19).
+- **Event Delegation** — Performance pattern attaching a single listener to an ancestor container to manage events triggered by existing or future children (Ch 19).
+- **Favicon** — Small identification icon displayed in browser tab headers, address bars, and bookmarks; linked via `<link rel="icon">` (Ch 6).
+- **Fixed Positioning** — Positioning scheme pinning an element relative to the browser viewport window so it remains stationary during scroll (Ch 12).
+- **Flexible Box Layout (Flexbox)** — One-dimensional CSS layout model optimizing space distribution and alignment along main and cross axes (Ch 12).
+- **Fraction Unit (`fr`)** — CSS Grid track unit representing an elastic fraction of the available free space in the grid container (Ch 13).
+- **Gecko** — Open-source browser layout engine developed by Mozilla powering Firefox (Ch 1).
+- **Global Attributes** — Standard HTML attributes permitted on virtually every element (`id`, `class`, `lang`, `title`, `dir`, `hidden`) (Ch 2).
+- **Grid Layout (CSS Grid)** — Two-dimensional CSS layout engine coordinating rows and columns simultaneously (Ch 13).
+- **Inheritance** — The automatic passing of CSS properties (primarily fonts and text formatting) from ancestor elements down to descendant children (Ch 10).
+- **Inline Element** — Phrasing element that flows horizontally within text, ignores vertical margins/padding, and cannot take custom width/height (Ch 11).
+- **JSON (JavaScript Object Notation)** — Lightweight text-based data interchange format parsed natively in JS via `JSON.parse()` and `JSON.stringify()` (Ch 20).
+- **Margin Collapsing** — The automatic union of adjoining vertical margins in normal document flow into a single margin equal to the maximum value (Ch 11).
+- **Media Query** — CSS rule (`@media`) conditionally applying declaration blocks based on device features (`min-width`, `orientation`, `print`) (Ch 13).
+- **Mobile-First** — Progressive enhancement methodology authoring default CSS for mobile screens and enhancing larger viewports via `min-width` (Ch 13).
+- **Normalize.css** — Non-destructive baseline stylesheet that preserves useful browser defaults and corrects cross-engine bugs (Ch 15).
+- **Parent Selector (`&`)** — SCSS compiler token referencing the parent selector string to nest pseudo-classes and BEM modifiers cleanly (Ch 16).
+- **Placeholder (`%placeholder`)** — Sass compiler selector producing zero compiled CSS until invoked by `@extend` to group selectors efficiently (Ch 16).
+- **Pseudo-Class** — Selector keyword preceded by a single colon matching dynamic states or structural positions (`:hover`, `:focus`, `:nth-child`) (Ch 9).
+- **Pseudo-Element** — Selector keyword preceded by double colons generating phantom sub-nodes or styling typographic fragments (`::before`, `::after`) (Ch 9).
+- **Relative Positioning** — Positioning scheme offsetting an element from its normal flow coordinates while preserving its original physical footprint (Ch 12).
+- **Root Element (`<html>`)** — Topmost node of an HTML document enclosing all other markup nodes (Ch 2).
+- **Same-Origin Policy (SOP)** — Browser security boundary restricting scripts on one origin from accessing data on another unless authorized by CORS (Ch 20).
+- **Semantic HTML** — Writing markup using elements that describe the meaning of content (`<header>`, `<main>`, `<article>`) rather than appearance (`<div>`) (Ch 4).
+- **Specificity** — The 4-column tuple `(A, B, C, D)` determining which CSS rule takes precedence when multiple rules match the same element (Ch 10).
+- **Sticky Positioning** — Hybrid positioning scheme where an element scrolls normally until reaching an offset threshold, then pins as fixed (Ch 12).
+- **SVG (Scalable Vector Graphics)** — XML-based resolution-independent vector graphics format capable of inline CSS and DOM manipulation (Ch 6).
+- **Temporal Dead Zone (TDZ)** — Time window between entering block scope and evaluating `const`/`let` declarations where variable access throws ReferenceError (Ch 17).
+- **Universal Selector (`*`)** — Selector matching every DOM element within the evaluation scope (Ch 9).
+- **UTF-8** — Variable-width Unicode character encoding standard capable of representing all worldwide characters; web standard declared via `<meta charset="UTF-8">` (Ch 1, Ch 3).
+- **Viewport** — The visible rectangle of the browser window displaying web content; controlled on mobile devices via `<meta name="viewport">` (Ch 3, Ch 13).
+- **Void Element** — Content-free standalone HTML element that cannot contain children and must never have a closing tag (`<img>`, `<br>`, `<meta>`, `<input>`) (Ch 2).
+- **WebKit** — Open-source browser layout engine developed by Apple powering Safari on macOS, iOS, and iPadOS (Ch 1).
+- **`XMLHttpRequest` (XHR)** — Classical JavaScript API object dispatching asynchronous HTTP background requests to web servers (Ch 20).
+- **`z-index`** — Property controlling the stacking layer order of positioned elements along the perpendicular z-axis (Ch 12).
