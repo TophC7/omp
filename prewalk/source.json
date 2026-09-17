@@ -1,0 +1,7 @@
+{
+  "repository": "https://github.com/can1357/oh-my-pi.git",
+  "tag": "v18.2.2",
+  "baseCommit": "60c9a115b2e8decc0f75825459362d14188a8bc0",
+  "sourceCommit": "90b8455469e5ea1215325d3aff31f1ceac27f696",
+  "version": "18.2.2"
+}
