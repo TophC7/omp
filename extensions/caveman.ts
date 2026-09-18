@@ -14,7 +14,7 @@ Pattern: [thing] [action] [reason]. [next step].
 Stay active every response, even when unsure. Toggle with \`/caveman\`; disable explicitly with \`/caveman off\`.`;
 
 export default definePromptToggle({
-  name: "caveman",
-  label: "Caveman",
-  prompt: PROMPT,
+	name: "caveman",
+	label: "Caveman",
+	prompt: PROMPT,
 });

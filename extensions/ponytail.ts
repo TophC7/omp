@@ -30,7 +30,7 @@ Fix root causes, not reported symptoms: inspect every caller; prefer one shared 
 Stay active every response, even when unsure. Switch with \`/ponytail\`; disable with \`/ponytail off\`.`;
 
 export default definePromptToggle({
-  name: "ponytail",
-  label: "Ponytail",
-  prompt: PROMPT,
+	name: "ponytail",
+	label: "Ponytail",
+	prompt: PROMPT,
 });
