@@ -10,7 +10,7 @@ modelRoles:
   task: openai-codex/gpt-5.6-sol:high
   review: openai-codex/gpt-5.6-sol:high
   designer: google-antigravity/claude-opus-4-6:high
-  sonic: openai-codex/gpt-5.6-luna:max
+  sonic: google-antigravity/gemini-2.5-flash:high
 task:
   maxEffort: high
   prewalk: false
