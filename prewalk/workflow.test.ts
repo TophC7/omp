@@ -12,7 +12,7 @@ type ContextHandler = (
 	},
 ) => Promise<{ messages?: Message[] } | undefined> | { messages?: Message[] } | undefined;
 
-const gemini = { provider: "google-antigravity", id: "gemini-2.5-flash" };
+const gemini = { provider: "google-antigravity", id: "gemini-3.8-flash" };
 const astra = { provider: "openai-codex", id: "gpt-6-astra" };
 const sol = { provider: "openai-codex", id: "gpt-5.6-sol" };
 const handoff: Message = { role: "custom", customType: "prewalk-checklist" };
