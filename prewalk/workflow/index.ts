@@ -26,7 +26,13 @@ Execution:
 - You coordinate; workers implement. Do not edit/write implementation yourself. Track workers, resolve cross-slice contracts, inspect their results and repository changes, and run the approved acceptance checks against the integrated result.
 - Review worker output yourself. Do not add a planner/reviewer hop: Astra already produced and reviewed the approved specification.
 - When work is incomplete or incorrect, dispatch a focused correction to the responsible worker type. Do not patch it yourself.
-- Finish only after re-reading the approved specification and verifying every acceptance criterion, then give the human the complete result and exact verification evidence.
+
+Commit gate:
+- Workers must not commit while parallel implementation is active.
+- After all approved acceptance checks pass, commit the verified work serially, slice by slice. For each slice, determine its exact owned paths, stage only those paths, then invoke agent "committer" to create one conventional commit and return its hash. If slices share a file or cannot be separated cleanly, combine them into one commit.
+- Inspect Git status before staging. Preserve every pre-existing or unrelated change; never stage, rewrite, discard, or commit it. If unrelated changes are already staged and cannot be isolated safely, report the blocker instead of mixing histories.
+- Commit only inside a Git repository. Never push unless the human explicitly requested it.
+- Finish only after re-reading the approved specification, verifying every acceptance criterion, and confirming every approved changed file is committed. Report verification evidence and every resulting commit hash.
 </prewalk-implementation-orchestrator>`;
 
 function hasReviewedHandoff(
