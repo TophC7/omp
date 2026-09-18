@@ -1,15 +1,16 @@
 modelRoles:
   default: google-antigravity/gemini-3.8-flash:high
   smol: openai-codex/gpt-5.6-luna:max
-  plan: openai-codex/gpt-6-astra:max
-  slow: openai-codex/gpt-6-astra:xhigh
-  review: openai-codex/gpt-5.6-sol:max
+  plan: openai-codex/gpt-6-astra:xhigh
+  review: openai-codex/gpt-5.6-sol:xhigh
   task: openai-codex/gpt-5.6-sol:xhigh
-  designer: anthropic/claude-opus-5:high
+  designer: google-antigravity/claude-opus-4-6:high
   advisor: openai-codex/gpt-6-astra:xhigh
   vision: google-antigravity/gemini-3.8-flash:high
-  commit: openai-codex/gpt-5.6-luna:low
+  commit: google-antigravity/claude-sonnet-4-6:medium
   tiny: openai-codex/gpt-5.6-luna:max
+  slow: openai-codex/gpt-6-astra:xhigh
+  Research: google-antigravity/gemini-3.1-pro:high
 cycleOrder:
   - default
   - smol

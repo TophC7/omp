@@ -1,34 +1,5 @@
-From 90b8455469e5ea1215325d3aff31f1ceac27f696 Mon Sep 17 00:00:00 2001
-From: Gabriel Velez <gabriel.velez131@gmail.com>
-Date: Thu, 17 Sep 2026 00:18:43 -0400
-Subject: [PATCH] feat(prewalk): gate implementation on reviewed clarification
-
----
- docs/cli-reference.md                         |  10 +-
- docs/prewalk.md                               |  56 +++-
- packages/coding-agent/CHANGELOG.md            |   4 +
- .../coding-agent/src/commands/launch-help.ts  |   2 +-
- .../coding-agent/src/config/model-resolver.ts |  70 +++++
- .../src/config/settings-schema.ts             |  11 +
- packages/coding-agent/src/main.ts             | 132 ++++----
- packages/coding-agent/src/plan-mode/state.ts  |  13 +
- packages/coding-agent/src/sdk.ts              |   2 +-
- .../src/session/agent-session-types.ts        |   5 +-
- .../coding-agent/src/session/agent-session.ts |  17 +-
- .../src/session/prewalk-review.ts             | 286 +++++++++++++++++
- packages/coding-agent/src/session/prewalk.ts  | 148 +++++++--
- .../coding-agent/src/session/session-tools.ts |   8 +-
- .../src/slash-commands/builtin-modes.ts       |  51 +++-
- packages/coding-agent/src/tools/write.ts      |  11 +
- .../test/agent-session-prewalk-review.test.ts | 289 ++++++++++++++++++
- .../coding-agent/test/plan-autosave.test.ts   |   1 +
- .../test/prewalk-startup-degradation.test.ts  |  48 +++
- 19 files changed, 1031 insertions(+), 133 deletions(-)
- create mode 100644 packages/coding-agent/src/session/prewalk-review.ts
- create mode 100644 packages/coding-agent/test/agent-session-prewalk-review.test.ts
-
 diff --git a/docs/cli-reference.md b/docs/cli-reference.md
-index 8938d37..f6204d4 100644
+index 8938d37f11861e539aae6761323542142e882dc7..f6204d4e10e4c67256428bba0684b8a8eeb03085 100644
 --- a/docs/cli-reference.md
 +++ b/docs/cli-reference.md
 @@ -108,12 +108,14 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
@@ -59,14 +30,14 @@ index 8938d37..f6204d4 100644
  
  #### Extensions, hooks, skills, and rules
 diff --git a/docs/prewalk.md b/docs/prewalk.md
-index 4df53b3..dc8dffd 100644
+index 4df53b3445224cf19039c17454a121467c198ed6..95f1dedbf8d6b47d679d61a8c60537223810250a 100644
 --- a/docs/prewalk.md
 +++ b/docs/prewalk.md
 @@ -1,30 +1,39 @@
  # Prewalk
  
 -Prewalk is a one-shot handoff from the active model to a faster or cheaper model after planning reaches implementation. It lets the starting model inspect the repository, create a todo list, and begin the change before the target model continues the session.
-+Prewalk is a one-shot model handoff. The legacy flow lets the starting model inspect the repository, create a todo list, and begin the change before a faster or cheaper target continues. The opt-in reviewed flow instead keeps both planning models read-only: the starting model drafts, a dedicated reviewer clarifies and revises, and only then may the target implement.
++Prewalk is a one-shot model handoff. The legacy flow lets the starting model inspect the repository, create a todo list, and begin the change before a faster or cheaper target continues. The opt-in reviewed flow instead keeps planning read-only: a configured reviewer clarifies and settles the plan before the target may implement. When the starting model is also the reviewer, it owns planning and clarification directly rather than submitting a draft to itself.
  
 -Prewalk is off by default. Its default target is the model assigned to the `@smol` role.
 +Prewalk is off by default. Its default target is the model assigned to the `@smol` role. Reviewed Prewalk is also off by default.
@@ -111,19 +82,19 @@ index 4df53b3..dc8dffd 100644
  ```
  
 -At startup, OMP resolves the target with the normal model-role and model-matching rules. If the target cannot be resolved or has no configured credentials, OMP prints a warning and starts with prewalk unarmed.
-+At startup, OMP resolves the target with the normal model-role and model-matching rules. In the legacy flow, an unresolved or unauthenticated target produces a warning and leaves Prewalk unarmed. Reviewed Prewalk additionally resolves the current `@advisor` assignment, including its configured thinking suffix, and verifies its credentials. A missing reviewed-flow prerequisite is an error: OMP never falls through to unreviewed implementation.
++At startup, OMP resolves the target with the normal model-role and model-matching rules. In the legacy flow, an unresolved or unauthenticated target produces a warning and leaves Prewalk unarmed. Reviewed Prewalk additionally resolves the current `@advisor` assignment, including its configured thinking suffix, and verifies its credentials. A missing reviewed-flow prerequisite is an error: OMP never falls through to unreviewed implementation. When the active model and reviewer have the same provider and model ID, OMP keeps that single planner at the reviewer's configured thinking level.
 +
 +## Reviewed Prewalk (`prewalk.review`)
 +
 +Reviewed Prewalk uses this sequence:
 +
-+1. The starting model enters plan mode, inspects the request and repository, and writes a draft plan.
-+2. OMP temporarily switches the same session to the model assigned to `@advisor`. The reviewer reads the original request, draft, and repository evidence.
-+3. The reviewer must use `ask` and receive a genuine human answer. Cancellation, timeout, or redirect to chat is not consent.
-+4. The reviewer revises the plan after that answer and submits it again.
-+5. OMP exits the read-only gate and hands the revised plan to `@smol` for implementation.
++1. If the starting model differs from `@advisor`, it enters plan mode, inspects the request and repository, writes a draft plan, and hands that draft to `@advisor`.
++2. If the starting model already is `@advisor`, it remains the sole planner and reviewer; no draft submission or same-model handoff is required.
++3. The reviewer must use `ask` and receive a genuine human answer. Cancellation, timeout, redirect to chat, or an incomplete answer is not consent.
++4. After that answer, the reviewer writes or revises the complete plan to record the clarified or confirmed scope, then submits it.
++5. OMP exits the read-only gate and hands the settled plan to the configured Prewalk target for implementation.
 +
-+Plan mode is a hard gate during drafting and review. Workspace writes, command execution, delegated execution and arbitrary tool devices remain blocked. Only local plan artifacts and plan proposal/rejection transports are writable. A first proposal moves to review, not implementation. Handoff occurs at a clean tool-batch boundary and requires both a successful question answer and a later revision of the same plan.
++Plan mode is a hard gate throughout planning and review. Workspace writes, command execution, delegated execution and arbitrary tool devices remain blocked. Only local plan artifacts and plan proposal/rejection transports are writable. In a split-model flow, the first proposal moves to review, not implementation. In a same-model flow, clarification may happen before any plan exists: the later first plan is the required post-answer revision. A proposal in the question's tool batch cannot hand off, and a plan written later in that batch is snapshotted and must be revised on a later turn. Every handoff occurs at a clean tool-batch boundary.
 +
 +Cancelling or interrupting clarification leaves implementation blocked, including after session resume. A new question revokes previous clearance. Headless sessions without interactive `ask` fail before the first provider request; reviewed Prewalk cannot run alongside plan-yolo.
 +
@@ -144,7 +115,7 @@ index 4df53b3..dc8dffd 100644
  Calls to other tools do not trigger the handoff. A read-only `xd://` device request routed through `write`, such as LSP navigation, also does not count; only device operations classified as workspace writes or execution count.
  
 -The switch is one-shot: after the handoff, prewalk disarms itself. The target model and thinking level are not changed when they already match the active session, because that handoff would be a no-op.
-+The legacy switch is one-shot: after the handoff, Prewalk disarms itself. The target model and thinking level are not changed when they already match the active session, because that handoff would be a no-op. Reviewed Prewalk instead disarms only after its second proposal has passed the question-and-revision gate.
++The legacy switch is one-shot: after the handoff, Prewalk disarms itself. The target model and thinking level are not changed when they already match the active session, because that handoff would be a no-op. Reviewed Prewalk instead disarms only after its settled proposal has passed the question-and-revision gate.
  
  ## Arm from an active session
  
@@ -153,10 +124,10 @@ index 4df53b3..dc8dffd 100644
  ```
  
 -`/prewalk` arms a one-shot handoff from the active model to the current `@smol` assignment.
-+`/prewalk` arms a one-shot handoff from the active model to the current `@smol` assignment. With `prewalk.review: true`, it also resolves `@advisor` and starts the reviewed, read-only flow; without that setting it uses the legacy todo/edit trigger.
++`/prewalk` arms a one-shot handoff from the active model to the current `@smol` assignment. With `prewalk.review: true`, it also resolves `@advisor` and starts the reviewed, read-only flow; without that setting it uses the legacy todo/edit trigger. If the active model already matches `@advisor`, that model performs planning and clarification directly.
  
 -After a handoff, `/prewalk restart` immediately returns the session to the current `@default` assignment and re-arms the handoff to `@smol`. Both roles are resolved when the command runs, so the cycle is independent of concrete model names and does not alter either role's persisted configuration.
-+After a handoff, `/prewalk restart` immediately returns the session to the current `@default` assignment and re-arms the same configured workflow toward `@smol`. The roles are resolved when the command runs, so the cycle is independent of concrete model names and does not alter persisted role configuration. A reviewed restart resets the draft/review gate; it cannot reuse an old answer as approval.
++After a handoff, `/prewalk restart` immediately returns the session to the current `@default` assignment and re-arms the same configured workflow toward `@smol`. The roles are resolved when the command runs, so the cycle is independent of concrete model names and does not alter persisted role configuration. A reviewed restart resets the planning/review gate; it cannot reuse an old answer as approval.
  
 -If prewalk is already armed, the command leaves the existing target in place. To choose a different target at startup, use `--prewalk-into`.
 +If Prewalk is already armed, the command leaves the existing target and reviewer in place. To choose a different target at startup, use `--prewalk-into`.
@@ -167,7 +138,7 @@ index 4df53b3..dc8dffd 100644
 -Task subagents have separate prewalk controls: agent frontmatter, `task.prewalk`, and per-agent `task.agentPrewalk` overrides. See [Task agent discovery](./task-agent-discovery.md) for their precedence and target selection.
 +Task subagents keep their existing, separate Prewalk controls: agent frontmatter, `task.prewalk`, and per-agent `task.agentPrewalk` overrides. Top-level `prewalk.review` is not inherited by task agents and does not alter their handoff behavior. See [Task agent discovery](./task-agent-discovery.md) for their precedence and target selection.
 diff --git a/packages/coding-agent/CHANGELOG.md b/packages/coding-agent/CHANGELOG.md
-index e9bd556..a58b720 100644
+index e9bd5561b65e540374982e99b8dc80063b075699..a58b720c06f61e722716defa9ba5fc75af0ae0a9 100644
 --- a/packages/coding-agent/CHANGELOG.md
 +++ b/packages/coding-agent/CHANGELOG.md
 @@ -2,6 +2,10 @@
@@ -182,7 +153,7 @@ index e9bd556..a58b720 100644
  
  ### Added
 diff --git a/packages/coding-agent/src/commands/launch-help.ts b/packages/coding-agent/src/commands/launch-help.ts
-index 1a21093..84eb5f1 100644
+index 1a2109303353675892d928bdbaf6c88c46427d3c..84eb5f110c7890a25c658a010c557fd44d417b08 100644
 --- a/packages/coding-agent/src/commands/launch-help.ts
 +++ b/packages/coding-agent/src/commands/launch-help.ts
 @@ -22,7 +22,7 @@ export const launchHelp = {
@@ -195,7 +166,7 @@ index 1a21093..84eb5f1 100644
  		"no-prewalk": Flags.boolean({ description: "Disable prewalk even if prewalk.enabled is set" }),
  		"prewalk-into": Flags.string({ description: 'Target model for prewalk (default the "smol" role)' }),
 diff --git a/packages/coding-agent/src/config/model-resolver.ts b/packages/coding-agent/src/config/model-resolver.ts
-index 528a6d0..681d791 100644
+index 528a6d0395871b259b042e1f7fe21427152b5290..681d7913248d2ee271c88de6d9919b3bccbba698 100644
 --- a/packages/coding-agent/src/config/model-resolver.ts
 +++ b/packages/coding-agent/src/config/model-resolver.ts
 @@ -2163,6 +2163,76 @@ export function resolveCliModel(options: {
@@ -276,7 +247,7 @@ index 528a6d0..681d791 100644
  	model: Model<Api> | undefined;
  	thinkingLevel?: ThinkingLevel;
 diff --git a/packages/coding-agent/src/config/settings-schema.ts b/packages/coding-agent/src/config/settings-schema.ts
-index 46a728f..e4f717f 100644
+index 46a728f299fc55ba9bef6f11325c935a7734375e..e4f717ff922bf1bcedf026fb2824e14737eaae67 100644
 --- a/packages/coding-agent/src/config/settings-schema.ts
 +++ b/packages/coding-agent/src/config/settings-schema.ts
 @@ -570,6 +570,17 @@ export const SETTINGS_SCHEMA = {
@@ -298,7 +269,7 @@ index 46a728f..e4f717f 100644
  		type: "enum",
  		values: ["off", "1", "3", "5"] as const,
 diff --git a/packages/coding-agent/src/main.ts b/packages/coding-agent/src/main.ts
-index b5995e9..59b3dc6 100644
+index b5995e9c58a024c6ccf31f977d315408c37dd3a6..59b3dc6d8a7567ecb36193588c8f952f282de182 100644
 --- a/packages/coding-agent/src/main.ts
 +++ b/packages/coding-agent/src/main.ts
 @@ -35,11 +35,10 @@ import {
@@ -471,7 +442,7 @@ index b5995e9..59b3dc6 100644
  		const rolePattern = expandRoleAlias(parsed.planYoloInto ?? "@smol", activeSettings);
  		const resolved = resolveCliModel({ cliModel: rolePattern, modelRegistry, preferences: modelMatchPreferences });
 diff --git a/packages/coding-agent/src/plan-mode/state.ts b/packages/coding-agent/src/plan-mode/state.ts
-index c1b8b95..16e7214 100644
+index c1b8b95cd75da3c5187fa158ba02894843b78223..16e721492a2b11d294f2146243c3d6e679a0a3f3 100644
 --- a/packages/coding-agent/src/plan-mode/state.ts
 +++ b/packages/coding-agent/src/plan-mode/state.ts
 @@ -3,4 +3,17 @@ export interface PlanModeState {
@@ -493,7 +464,7 @@ index c1b8b95..16e7214 100644
 +	edit: true,
 +};
 diff --git a/packages/coding-agent/src/sdk.ts b/packages/coding-agent/src/sdk.ts
-index 936d57b..55e3c6c 100644
+index 936d57bc8926c38dfaf63bd475bd43d32628f065..55e3c6c0194a406a8d8581da9fedf542bc8ff700 100644
 --- a/packages/coding-agent/src/sdk.ts
 +++ b/packages/coding-agent/src/sdk.ts
 @@ -442,7 +442,7 @@ export interface CreateAgentSessionOptions {
@@ -506,7 +477,7 @@ index 936d57b..55e3c6c 100644
  	/** Force read-only plan mode at start, auto-approve on the model's first resolve call, then switch to execute. */
  	planYolo?: PlanYolo;
 diff --git a/packages/coding-agent/src/session/agent-session-types.ts b/packages/coding-agent/src/session/agent-session-types.ts
-index 9237d9a..b1e7735 100644
+index 9237d9a59a5a225853258c20c4972cbd1a51f37b..b1e77354e5378debec6e3edb938e915f40d98019 100644
 --- a/packages/coding-agent/src/session/agent-session-types.ts
 +++ b/packages/coding-agent/src/session/agent-session-types.ts
 @@ -78,12 +78,13 @@ export interface AsyncJobSnapshot {
@@ -526,7 +497,7 @@ index 9237d9a..b1e7735 100644
  
  /**
 diff --git a/packages/coding-agent/src/session/agent-session.ts b/packages/coding-agent/src/session/agent-session.ts
-index d94fc2c..ccb54bd 100644
+index d94fc2ccec0e9fb199cf42de9b37154fb23490bd..ccb54bdb3738ab3967c06218ab2b89e6e965246f 100644
 --- a/packages/coding-agent/src/session/agent-session.ts
 +++ b/packages/coding-agent/src/session/agent-session.ts
 @@ -1241,8 +1241,8 @@ export class AgentSession {
@@ -598,10 +569,10 @@ index d94fc2c..ccb54bd 100644
  			// Build messages array (session context, eager todo prelude, then active prompt message)
 diff --git a/packages/coding-agent/src/session/prewalk-review.ts b/packages/coding-agent/src/session/prewalk-review.ts
 new file mode 100644
-index 0000000..6521e25
+index 0000000000000000000000000000000000000000..decfa3e76a543333d4e4b80444e2013dce6ad68c
 --- /dev/null
 +++ b/packages/coding-agent/src/session/prewalk-review.ts
-@@ -0,0 +1,286 @@
+@@ -0,0 +1,316 @@
 +import type { AgentMessage, AgentToolResult, AgentTurnEndContext } from "@oh-my-pi/pi-agent-core";
 +import { invalidateMessageCache } from "@oh-my-pi/pi-agent-core/compaction";
 +import type { ResolvedApprovedPlan } from "../plan-mode/approved-plan";
@@ -617,9 +588,12 @@ index 0000000..6521e25
 +export type PrewalkReviewState = {
 +	prewalk: Prewalk;
 +	phase: "draft" | "review";
++	/** Fresh same-model flows plan and review in one phase. Absent on older persisted states. */
++	directPlanning?: boolean;
 +	planFilePath: string;
 +	planTitle: string;
-+	planAtAnswer?: string;
++	/** null records a genuine answer received before any plan existed. */
++	planAtAnswer?: string | null;
 +	previousTools: { enabled: string[]; mounted: string[] };
 +};
 +
@@ -645,18 +619,24 @@ index 0000000..6521e25
 +		this.#host = host;
 +		this.#resolvePlan = resolvePlan;
 +		this.#implement = implement;
-+		this.#state = restored
-+			? { ...restored }
-+			: {
-+					prewalk,
-+					phase: "draft",
-+					planFilePath: "local://prewalk-plan.md",
-+					planTitle: "prewalk",
-+					previousTools: {
-+						enabled: host.getEnabledToolNames(),
-+						mounted: host.getMountedXdevToolNames(),
-+					},
-+				};
++		if (restored) {
++			this.#state = { ...restored };
++			return;
++		}
++		const reviewer = prewalk.reviewer!;
++		const planner = host.model();
++		const directPlanning = planner?.id === reviewer.model.id && planner.provider === reviewer.model.provider;
++		this.#state = {
++			prewalk,
++			phase: directPlanning ? "review" : "draft",
++			directPlanning,
++			planFilePath: "local://prewalk-plan.md",
++			planTitle: "prewalk",
++			previousTools: {
++				enabled: host.getEnabledToolNames(),
++				mounted: host.getMountedXdevToolNames(),
++			},
++		};
 +	}
 +
 +	static restore(host: PrewalkCoordinatorHost): PrewalkReviewState | undefined {
@@ -670,6 +650,8 @@ index 0000000..6521e25
 +			!state.prewalk.target ||
 +			!state.previousTools ||
 +			(state.phase !== "draft" && state.phase !== "review") ||
++			(state.directPlanning !== undefined && typeof state.directPlanning !== "boolean") ||
++			(state.planAtAnswer !== undefined && state.planAtAnswer !== null && typeof state.planAtAnswer !== "string") ||
 +			typeof state.planFilePath !== "string"
 +		) {
 +			throw new Error("Cannot restore pending Prewalk review. Review the session before continuing.");
@@ -682,7 +664,7 @@ index 0000000..6521e25
 +	}
 +
 +	restart(): void {
-+		this.#state.phase = "draft";
++		this.#state.phase = this.#state.directPlanning ? "review" : "draft";
 +		this.#state.planAtAnswer = undefined;
 +		this.#pending = undefined;
 +		this.#started = false;
@@ -700,7 +682,9 @@ index 0000000..6521e25
 +		const content =
 +			this.#state.phase === "draft"
 +				? `Reviewed Prewalk: DRAFT phase. Inspect the user's request and relevant code, then write a complete implementation plan to ${this.#state.planFilePath}. Include scope, assumptions, acceptance criteria, risks and unresolved intent. Do not implement. Another model will challenge the plan and ask the user before implementation. Submit the draft by writing "prewalk" to xd://propose. Draft submission is NOT approval.`
-+				: `Reviewed Prewalk: REVIEW phase. You are the plan reviewer, not the background advisor. Read the original user request, the full plan at ${this.#state.planFilePath}, and relevant repository evidence. Challenge unsupported assumptions and check whether this plan actually matches the desired ask. Use ask to obtain the user's explicit clarification: ask concrete intent/tradeoff questions that evidence cannot answer; if none remain, ask the user to confirm your concrete interpretation of scope. Never invent an answer or treat cancellation, timeout, or a chat redirect as consent. After the user answers, revise the plan file to incorporate those answers (record confirmed scope even if unchanged), then write "prewalk" to xd://propose. No implementation before that handoff. Do not delegate this review or the user's answers to another model.`;
++				: this.#state.directPlanning
++					? `Reviewed Prewalk: PLANNING phase. You are the sole planner and plan reviewer. Inspect the original user request and relevant repository evidence, challenge unsupported assumptions, and use ask to obtain the user's explicit clarification: ask concrete intent/tradeoff questions that evidence cannot answer; if none remain, ask the user to confirm your concrete interpretation of scope. Never invent an answer or treat cancellation, timeout, or a chat redirect as consent. After the user answers, write or revise the complete implementation plan at ${this.#state.planFilePath} to incorporate those answers (record confirmed scope even if unchanged), then write "prewalk" to xd://propose. No separate draft submission is required. No implementation before that handoff. Do not delegate planning or the user's answers to another model.`
++					: `Reviewed Prewalk: REVIEW phase. You are the plan reviewer, not the background advisor. Read the original user request, the full plan at ${this.#state.planFilePath}, and relevant repository evidence. Challenge unsupported assumptions and check whether this plan actually matches the desired ask. Use ask to obtain the user's explicit clarification: ask concrete intent/tradeoff questions that evidence cannot answer; if none remain, ask the user to confirm your concrete interpretation of scope. Never invent an answer or treat cancellation, timeout, or a chat redirect as consent. After the user answers, revise the plan file to incorporate those answers (record confirmed scope even if unchanged), then write "prewalk" to xd://propose. No implementation before that handoff. Do not delegate this review or the user's answers to another model.`;
 +		// A resumed review uses the recorded answer rather than asking for it twice.
 +		const resumeNote =
 +			this.#state.planAtAnswer === undefined
@@ -753,7 +737,13 @@ index 0000000..6521e25
 +			);
 +			if (this.#state.phase === "review") {
 +				const reviewer = this.#state.prewalk.reviewer!;
-+				await this.#host.setModelTemporary(reviewer.model, reviewer.thinkingLevel, { ephemeral: true });
++				if (
++					!this.#state.directPlanning ||
++					!this.#reviewerIsActive() ||
++					(reviewer.thinkingLevel !== undefined && this.#host.configuredThinkingLevel() !== reviewer.thinkingLevel)
++				) {
++					await this.#host.setModelTemporary(reviewer.model, reviewer.thinkingLevel, { ephemeral: true });
++				}
 +			}
 +		} catch (error) {
 +			this.#host.setPlanModeState(previousState);
@@ -768,11 +758,22 @@ index 0000000..6521e25
 +		this.#persist();
 +		this.#instruct();
 +	}
-+	async #readReviewedPlan(): Promise<ResolvedApprovedPlan> {
-+		const planContent = await readPlanFile(this.#state.planFilePath, {
++
++	#reviewerIsActive(): boolean {
++		const active = this.#host.model();
++		const reviewer = this.#state.prewalk.reviewer!;
++		return active?.id === reviewer.model.id && active.provider === reviewer.model.provider;
++	}
++
++	async #readPlanSnapshot(): Promise<string | null> {
++		return readPlanFile(this.#state.planFilePath, {
 +			localProtocolOptions: this.#host.localProtocolOptions(),
 +			cwd: this.#host.sessionManager.getCwd(),
 +		});
++	}
++
++	async #readReviewedPlan(): Promise<ResolvedApprovedPlan> {
++		const planContent = await this.#readPlanSnapshot();
 +		if (planContent === null)
 +			throw new ToolError(
 +				`Reviewed plan not found at ${this.#state.planFilePath}. Restore that plan before continuing.`,
@@ -786,9 +787,7 @@ index 0000000..6521e25
 +		const plan = this.#state.phase === "draft" ? await this.#resolvePlan(title) : await this.#readReviewedPlan();
 +		if (!plan.planContent.trim()) throw new ToolError("Write a non-empty plan before submitting it.");
 +		if (this.#state.phase === "review") {
-+			const reviewer = this.#state.prewalk.reviewer!;
-+			const active = this.#host.model();
-+			if (active?.id !== reviewer.model.id || active.provider !== reviewer.model.provider) {
++			if (!this.#reviewerIsActive()) {
 +				throw new ToolError("Only the configured Prewalk reviewer may submit the clarified plan.");
 +			}
 +			if (this.#state.planAtAnswer === undefined) {
@@ -796,7 +795,7 @@ index 0000000..6521e25
 +					"Ask the user to clarify or confirm the plan and wait for a genuine answer before handoff.",
 +				);
 +			}
-+			if (plan.planContent === this.#state.planAtAnswer) {
++			if (this.#state.planAtAnswer !== null && plan.planContent === this.#state.planAtAnswer) {
 +				throw new ToolError(
 +					"Revise the plan after the user's answer, recording the clarified or confirmed decisions, before handoff.",
 +				);
@@ -843,9 +842,11 @@ index 0000000..6521e25
 +								(answer.customInput?.trim().length ?? 0) > 0),
 +					);
 +				// Every new question invalidates previous clearance, including a cancelled
-+				// follow-up. A successful ask must be followed by a fresh plan revision.
++				// follow-up. Snapshot at the completed tool-batch boundary: a plan written
++				// later in the same batch must still be revised on a later turn, while null
++				// records that the answer preceded the first plan without granting approval.
 +				this.#pending = undefined;
-+				this.#state.planAtAnswer = answered ? (await this.#readReviewedPlan()).planContent : undefined;
++				this.#state.planAtAnswer = answered ? await this.#readPlanSnapshot() : undefined;
 +				this.#persist();
 +			}
 +		}
@@ -889,7 +890,7 @@ index 0000000..6521e25
 +	}
 +}
 diff --git a/packages/coding-agent/src/session/prewalk.ts b/packages/coding-agent/src/session/prewalk.ts
-index 2e5a813..5ac57a2 100644
+index 2e5a813cf7851a1d1642a4f1a14fe073f9ffd3ad..5ac57a20aa8b43d96587e279a5f7ee53505164b0 100644
 --- a/packages/coding-agent/src/session/prewalk.ts
 +++ b/packages/coding-agent/src/session/prewalk.ts
 @@ -4,7 +4,7 @@ import type { Model, ToolResultMessage } from "@oh-my-pi/pi-ai";
@@ -1192,7 +1193,7 @@ index 2e5a813..5ac57a2 100644
  	}
  }
 diff --git a/packages/coding-agent/src/session/session-tools.ts b/packages/coding-agent/src/session/session-tools.ts
-index a312929..0f2bf52 100644
+index a312929c62dbe7072e194416c2dee94719fb9b78..0f2bf52bd564e82001e0eb40c9c0a175008fcad8 100644
 --- a/packages/coding-agent/src/session/session-tools.ts
 +++ b/packages/coding-agent/src/session/session-tools.ts
 @@ -21,6 +21,7 @@ import { invalidateToolSchemaMetadata } from "../modes/utils/context-usage";
@@ -1228,7 +1229,7 @@ index a312929..0f2bf52 100644
  			enabledToolNames: toolNames,
  			evalTransportAvailable: this.#hasCodeModeEvalTransport(),
 diff --git a/packages/coding-agent/src/slash-commands/builtin-modes.ts b/packages/coding-agent/src/slash-commands/builtin-modes.ts
-index 9b7078c..0ed376a 100644
+index 9b7078c1a7379f426422022905ebc129e96f4290..0ed376a63ca79f428c9896689ae0e42642ec66ce 100644
 --- a/packages/coding-agent/src/slash-commands/builtin-modes.ts
 +++ b/packages/coding-agent/src/slash-commands/builtin-modes.ts
 @@ -3,6 +3,8 @@ import {
@@ -1328,7 +1329,7 @@ index 9b7078c..0ed376a 100644
  			}
  			return commandConsumed();
 diff --git a/packages/coding-agent/src/tools/write.ts b/packages/coding-agent/src/tools/write.ts
-index ea9e2f2..361a542 100644
+index ea9e2f2cd4969c31fc1613cbcbcb68b8fd763c9b..361a542e7291f47dc9bf737cbee755297eff78bd 100644
 --- a/packages/coding-agent/src/tools/write.ts
 +++ b/packages/coding-agent/src/tools/write.ts
 @@ -1229,6 +1229,17 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
@@ -1351,13 +1352,13 @@ index ea9e2f2..361a542 100644
  			const { text: cleanContent, stripped } = stripWriteContent(this.session, content);
 diff --git a/packages/coding-agent/test/agent-session-prewalk-review.test.ts b/packages/coding-agent/test/agent-session-prewalk-review.test.ts
 new file mode 100644
-index 0000000..7f078cb
+index 0000000000000000000000000000000000000000..42ae9f686debbfcf4849d59b1baf2771a87f9f7b
 --- /dev/null
 +++ b/packages/coding-agent/test/agent-session-prewalk-review.test.ts
-@@ -0,0 +1,289 @@
+@@ -0,0 +1,411 @@
 +import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 +import * as path from "node:path";
-+import type { ToolResultMessage } from "@oh-my-pi/pi-ai";
++import { Effort, type ToolResultMessage } from "@oh-my-pi/pi-ai";
 +import { createMockModel, type MockResponse } from "@oh-my-pi/pi-ai/providers/mock";
 +import { getBundledModel } from "@oh-my-pi/pi-catalog/models";
 +import { ModelRegistry } from "@oh-my-pi/pi-coding-agent/config/model-registry";
@@ -1407,6 +1408,7 @@ index 0000000..7f078cb
 +		options: {
 +			cancelled?: boolean;
 +			cancelAfterAnswer?: boolean;
++			sameReviewer?: boolean;
 +			sameTarget?: boolean;
 +			interactive?: boolean;
 +			resume?: { cwd: string; manager: SessionManager };
@@ -1419,7 +1421,7 @@ index 0000000..7f078cb
 +		authStorages.push(authStorage);
 +		authStorage.setRuntimeApiKey("anthropic", "test-key");
 +		const primary = getBundledModel("anthropic", "claude-sonnet-4-5")!;
-+		const reviewer = getBundledModel("anthropic", "claude-opus-4-5")!;
++		const reviewer = options.sameReviewer ? primary : getBundledModel("anthropic", "claude-opus-4-5")!;
 +		const target = options.sameTarget ? primary : getBundledModel("anthropic", "claude-sonnet-4-6")!;
 +		const modelRegistry = new ModelRegistry(authStorage, path.join(cwd, "models.yml"));
 +		const created = await createAgentSession({
@@ -1428,7 +1430,13 @@ index 0000000..7f078cb
 +			authStorage,
 +			modelRegistry,
 +			model: primary,
-+			prewalk: options.resume ? undefined : { target, reviewer: { model: reviewer } },
++			thinkingLevel: options.sameReviewer ? Effort.XHigh : undefined,
++			prewalk: options.resume
++				? undefined
++				: {
++						target,
++						reviewer: { model: reviewer, thinkingLevel: options.sameReviewer ? Effort.XHigh : undefined },
++					},
 +			settings: Settings.isolated({ "compaction.enabled": false, "plan.autosave": false, "ask.notify": "off" }),
 +			sessionManager: options.resume?.manager ?? SessionManager.create(cwd, path.join(cwd, "sessions")),
 +			toolNames: ["read", "write", "ask", "bash"],
@@ -1447,9 +1455,13 @@ index 0000000..7f078cb
 +		});
 +		sessions.push(created.session);
 +		const models: string[] = [];
++		const thinkingLevels: Array<string | undefined> = [];
++		const contexts: unknown[] = [];
 +		const scripted = responses.values();
 +		created.session.agent.streamFn = (model, context, streamOptions) => {
 +			models.push(model.id);
++			thinkingLevels.push(created.session.configuredThinkingLevel());
++			contexts.push(context);
 +			const next = scripted.next();
 +			const mock = createMockModel({
 +				id: model.id,
@@ -1479,8 +1491,119 @@ index 0000000..7f078cb
 +			} as unknown as ExtensionUIContext,
 +			true,
 +		);
-+		return { ...created, cwd, primary, reviewer, target, models };
++		return { ...created, cwd, primary, reviewer, target, models, thinkingLevels, contexts };
 +	}
++
++	it("lets the active reviewer plan, clarify, revise and hand off without a draft-review hop", async () => {
++		const run = await setup(
++			[
++				call("initial-plan", "write", { path: "local://prewalk-plan.md", content: draft }),
++				call("clarify", "ask", question),
++				call("skip-revision", "write", { path: "xd://propose", content: "prewalk" }),
++				call("revise", "write", { path: "local://prewalk-plan.md", content: clarified }),
++				call("handoff", "write", { path: "xd://propose", content: "prewalk" }),
++				call("implement", "write", { path: "greeting.txt", content: "Hello!" }),
++				{ content: ["Implemented the settled plan."] },
++			],
++			{ sameReviewer: true },
++		);
++
++		await run.session.prompt("Create a greeting after clarifying its punctuation.");
++
++		const rejected = run.session.messages.find(
++			(message): message is ToolResultMessage =>
++				message.role === "toolResult" && message.toolCallId === "skip-revision",
++		);
++		expect(rejected?.isError).toBe(true);
++		expect(run.models).toEqual([
++			run.primary.id,
++			run.primary.id,
++			run.primary.id,
++			run.primary.id,
++			run.primary.id,
++			run.target.id,
++			run.target.id,
++		]);
++		expect(run.thinkingLevels.slice(0, 5)).toEqual(Array(5).fill(Effort.XHigh));
++		expect(JSON.stringify(run.contexts[5])).toContain("User explicitly confirmed an exclamation mark.");
++		expect(await Bun.file(path.join(run.cwd, "greeting.txt")).text()).toBe("Hello!");
++	});
++
++	it("records an answer before the first plan without approving the same tool batch", async () => {
++		const run = await setup(
++			[
++				{
++					content: [
++						{ type: "toolCall", id: "clarify-first", name: "ask", arguments: question },
++						{
++							type: "toolCall",
++							id: "premature-proposal",
++							name: "write",
++							arguments: { path: "xd://propose", content: "prewalk" },
++						},
++					],
++					stopReason: "toolUse",
++				},
++				call("write-settled-plan", "write", { path: "local://prewalk-plan.md", content: clarified }),
++				call("handoff", "write", { path: "xd://propose", content: "prewalk" }),
++				call("implement", "write", { path: "greeting.txt", content: "Hello!" }),
++				{ content: ["Implemented after the clean handoff."] },
++			],
++			{ sameReviewer: true },
++		);
++
++		await run.session.prompt("Clarify before writing the greeting plan.");
++
++		const premature = run.session.messages.find(
++			(message): message is ToolResultMessage =>
++				message.role === "toolResult" && message.toolCallId === "premature-proposal",
++		);
++		expect(premature?.isError).toBe(true);
++		expect(run.models).toEqual([run.primary.id, run.primary.id, run.primary.id, run.target.id, run.target.id]);
++		expect(await Bun.file(path.join(run.cwd, "greeting.txt")).text()).toBe("Hello!");
++	});
++
++	it("keeps a cancelled direct-planning clarification blocked across resume", async () => {
++		const initial = await setup([call("cancelled-question", "ask", question)], {
++			cancelled: true,
++			sameReviewer: true,
++		});
++		await initial.session.prompt("Clarify the greeting before planning it.");
++		const sessionFile = initial.session.sessionManager.getSessionFile()!;
++		await initial.session.dispose();
++		const manager = await SessionManager.open(sessionFile);
++		const resumed = await setup(
++			[
++				call("premature-write", "write", { path: "greeting.txt", content: "premature" }),
++				call("premature-proposal", "write", { path: "xd://propose", content: "prewalk" }),
++				call("answer-after-resume", "ask", question),
++				call("plan-after-resume", "write", { path: "local://prewalk-plan.md", content: clarified }),
++				call("handoff-after-resume", "write", { path: "xd://propose", content: "prewalk" }),
++				call("implement-after-resume", "write", { path: "greeting.txt", content: "Hello!" }),
++				{ content: ["Implemented after resumed clarification."] },
++			],
++			{ resume: { cwd: initial.cwd, manager }, sameReviewer: true },
++		);
++
++		await resumed.session.prompt("Resume without bypassing clarification.");
++
++		for (const id of ["premature-write", "premature-proposal"]) {
++			const result = resumed.session.messages.find(
++				(message): message is ToolResultMessage => message.role === "toolResult" && message.toolCallId === id,
++			);
++			expect(result?.isError).toBe(true);
++		}
++		expect(resumed.models).toEqual([
++			resumed.primary.id,
++			resumed.primary.id,
++			resumed.primary.id,
++			resumed.primary.id,
++			resumed.primary.id,
++			resumed.target.id,
++			resumed.target.id,
++		]);
++		expect(await Bun.file(path.join(resumed.cwd, "greeting.txt")).text()).toBe("Hello!");
++	});
 +
 +	it("keeps writes blocked until reviewer asks, records the answer and revises the plan", async () => {
 +		const run = await setup([
@@ -1645,7 +1768,7 @@ index 0000000..7f078cb
 +	});
 +});
 diff --git a/packages/coding-agent/test/plan-autosave.test.ts b/packages/coding-agent/test/plan-autosave.test.ts
-index 1550aab..824de38 100644
+index 1550aaba49b958970b38b8a7bca33f106ff7809c..824de38a7e8880675b227bfce7e08ebbf71ae684 100644
 --- a/packages/coding-agent/test/plan-autosave.test.ts
 +++ b/packages/coding-agent/test/plan-autosave.test.ts
 @@ -176,6 +176,7 @@ describe("plan-yolo approval autosave", () => {
@@ -1657,7 +1780,7 @@ index 1550aab..824de38 100644
  			getActiveToolNames: () => [],
  			getEnabledToolNames: () => [],
 diff --git a/packages/coding-agent/test/prewalk-startup-degradation.test.ts b/packages/coding-agent/test/prewalk-startup-degradation.test.ts
-index 1ca370e..b9bc786 100644
+index 1ca370edae8b7e6fab514f766e8e580f9f7878e0..b9bc786c40dcdc34932114bb91b3551d92de58fe 100644
 --- a/packages/coding-agent/test/prewalk-startup-degradation.test.ts
 +++ b/packages/coding-agent/test/prewalk-startup-degradation.test.ts
 @@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:
