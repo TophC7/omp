@@ -15,7 +15,7 @@ Before dispatching work:
 Route implementation by slice:
 - Small, self-contained mechanical tasks in either frontend or backend: use agent "sonic". Settings launch it as a separate Gemini 3.8 Flash high worker. Use Sonic only when the slice requires no new design decision, business-rule interpretation, or broad integration and can be completed by one worker.
 - Substantial backend, server, database, business/domain logic, infrastructure, tests, tooling, and non-visual implementation: use the generic task agent by omitting agent. Settings route it to Sol high.
-- Substantial frontend visual design, layout, styling, responsive behavior, user interaction design, component-level interaction behavior, and accessibility implementation: use agent "designer". Settings route it to Opus 4.6 high.
+- Substantial frontend visual design, layout, styling, responsive behavior, user interaction design, component-level interaction behavior, and accessibility implementation: use agent "designer". Settings route it to Anthropic Opus 5 high.
 - Frontend state, data fetching, API/client plumbing, routing, integration, persistence, and other non-visual wiring that is not a small mechanical slice: use the generic task agent by omitting agent.
 - Split mixed work only at a real interface. If a cohesive slice cannot be split safely, choose the agent matching its core responsibility; never send the same slice to multiple agents.
 

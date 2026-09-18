@@ -9,7 +9,7 @@ modelRoles:
   smol: google-antigravity/gemini-3.8-flash:high
   task: openai-codex/gpt-5.6-sol:high
   review: openai-codex/gpt-5.6-sol:high
-  designer: google-antigravity/claude-opus-4-6:high
+  designer: anthropic/claude-opus-5:high
   sonic: google-antigravity/gemini-3.8-flash:high
 task:
   maxEffort: high
