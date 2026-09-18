@@ -1,5 +1,5 @@
 diff --git a/docs/cli-reference.md b/docs/cli-reference.md
-index 8938d37f11861e539aae6761323542142e882dc7..f6204d4e10e4c67256428bba0684b8a8eeb03085 100644
+index 8938d37..f6204d4 100644
 --- a/docs/cli-reference.md
 +++ b/docs/cli-reference.md
 @@ -108,12 +108,14 @@ See [providers](./providers.md) and [models](./models.md) for model resolution.
@@ -30,7 +30,7 @@ index 8938d37f11861e539aae6761323542142e882dc7..f6204d4e10e4c67256428bba0684b8a8
  
  #### Extensions, hooks, skills, and rules
 diff --git a/docs/prewalk.md b/docs/prewalk.md
-index 4df53b3445224cf19039c17454a121467c198ed6..95f1dedbf8d6b47d679d61a8c60537223810250a 100644
+index 4df53b3..95f1ded 100644
 --- a/docs/prewalk.md
 +++ b/docs/prewalk.md
 @@ -1,30 +1,39 @@
@@ -138,10 +138,10 @@ index 4df53b3445224cf19039c17454a121467c198ed6..95f1dedbf8d6b47d679d61a8c6053722
 -Task subagents have separate prewalk controls: agent frontmatter, `task.prewalk`, and per-agent `task.agentPrewalk` overrides. See [Task agent discovery](./task-agent-discovery.md) for their precedence and target selection.
 +Task subagents keep their existing, separate Prewalk controls: agent frontmatter, `task.prewalk`, and per-agent `task.agentPrewalk` overrides. Top-level `prewalk.review` is not inherited by task agents and does not alter their handoff behavior. See [Task agent discovery](./task-agent-discovery.md) for their precedence and target selection.
 diff --git a/packages/coding-agent/CHANGELOG.md b/packages/coding-agent/CHANGELOG.md
-index e9bd5561b65e540374982e99b8dc80063b075699..a58b720c06f61e722716defa9ba5fc75af0ae0a9 100644
+index e9bd556..f02cc83 100644
 --- a/packages/coding-agent/CHANGELOG.md
 +++ b/packages/coding-agent/CHANGELOG.md
-@@ -2,6 +2,10 @@
+@@ -2,6 +2,14 @@
  
  ## [Unreleased]
  
@@ -149,11 +149,15 @@ index e9bd5561b65e540374982e99b8dc80063b075699..a58b720c06f61e722716defa9ba5fc75
 +
 +- Added opt-in `prewalk.review`: a read-only draft and `@advisor` clarification/revision phase before the implementation handoff. Cancelled questions keep implementation blocked across session resume; the background advisor remains independent.
 +
++### Fixed
++
++- Restarted reviewed Prewalk turns now explicitly tell the planner that the gate is already active, preventing stale conversation context from making it ask the user to run `/prewalk restart` again.
++
  ## [18.2.2] - 2026-09-16
  
  ### Added
 diff --git a/packages/coding-agent/src/commands/launch-help.ts b/packages/coding-agent/src/commands/launch-help.ts
-index 1a2109303353675892d928bdbaf6c88c46427d3c..84eb5f110c7890a25c658a010c557fd44d417b08 100644
+index 1a21093..84eb5f1 100644
 --- a/packages/coding-agent/src/commands/launch-help.ts
 +++ b/packages/coding-agent/src/commands/launch-help.ts
 @@ -22,7 +22,7 @@ export const launchHelp = {
@@ -166,7 +170,7 @@ index 1a2109303353675892d928bdbaf6c88c46427d3c..84eb5f110c7890a25c658a010c557fd4
  		"no-prewalk": Flags.boolean({ description: "Disable prewalk even if prewalk.enabled is set" }),
  		"prewalk-into": Flags.string({ description: 'Target model for prewalk (default the "smol" role)' }),
 diff --git a/packages/coding-agent/src/config/model-resolver.ts b/packages/coding-agent/src/config/model-resolver.ts
-index 528a6d0395871b259b042e1f7fe21427152b5290..681d7913248d2ee271c88de6d9919b3bccbba698 100644
+index 528a6d0..681d791 100644
 --- a/packages/coding-agent/src/config/model-resolver.ts
 +++ b/packages/coding-agent/src/config/model-resolver.ts
 @@ -2163,6 +2163,76 @@ export function resolveCliModel(options: {
@@ -247,7 +251,7 @@ index 528a6d0395871b259b042e1f7fe21427152b5290..681d7913248d2ee271c88de6d9919b3b
  	model: Model<Api> | undefined;
  	thinkingLevel?: ThinkingLevel;
 diff --git a/packages/coding-agent/src/config/settings-schema.ts b/packages/coding-agent/src/config/settings-schema.ts
-index 46a728f299fc55ba9bef6f11325c935a7734375e..e4f717ff922bf1bcedf026fb2824e14737eaae67 100644
+index 46a728f..e4f717f 100644
 --- a/packages/coding-agent/src/config/settings-schema.ts
 +++ b/packages/coding-agent/src/config/settings-schema.ts
 @@ -570,6 +570,17 @@ export const SETTINGS_SCHEMA = {
@@ -269,7 +273,7 @@ index 46a728f299fc55ba9bef6f11325c935a7734375e..e4f717ff922bf1bcedf026fb2824e147
  		type: "enum",
  		values: ["off", "1", "3", "5"] as const,
 diff --git a/packages/coding-agent/src/main.ts b/packages/coding-agent/src/main.ts
-index b5995e9c58a024c6ccf31f977d315408c37dd3a6..59b3dc6d8a7567ecb36193588c8f952f282de182 100644
+index b5995e9..59b3dc6 100644
 --- a/packages/coding-agent/src/main.ts
 +++ b/packages/coding-agent/src/main.ts
 @@ -35,11 +35,10 @@ import {
@@ -442,7 +446,7 @@ index b5995e9c58a024c6ccf31f977d315408c37dd3a6..59b3dc6d8a7567ecb36193588c8f952f
  		const rolePattern = expandRoleAlias(parsed.planYoloInto ?? "@smol", activeSettings);
  		const resolved = resolveCliModel({ cliModel: rolePattern, modelRegistry, preferences: modelMatchPreferences });
 diff --git a/packages/coding-agent/src/plan-mode/state.ts b/packages/coding-agent/src/plan-mode/state.ts
-index c1b8b95cd75da3c5187fa158ba02894843b78223..16e721492a2b11d294f2146243c3d6e679a0a3f3 100644
+index c1b8b95..16e7214 100644
 --- a/packages/coding-agent/src/plan-mode/state.ts
 +++ b/packages/coding-agent/src/plan-mode/state.ts
 @@ -3,4 +3,17 @@ export interface PlanModeState {
@@ -464,7 +468,7 @@ index c1b8b95cd75da3c5187fa158ba02894843b78223..16e721492a2b11d294f2146243c3d6e6
 +	edit: true,
 +};
 diff --git a/packages/coding-agent/src/sdk.ts b/packages/coding-agent/src/sdk.ts
-index 936d57bc8926c38dfaf63bd475bd43d32628f065..55e3c6c0194a406a8d8581da9fedf542bc8ff700 100644
+index 936d57b..55e3c6c 100644
 --- a/packages/coding-agent/src/sdk.ts
 +++ b/packages/coding-agent/src/sdk.ts
 @@ -442,7 +442,7 @@ export interface CreateAgentSessionOptions {
@@ -477,7 +481,7 @@ index 936d57bc8926c38dfaf63bd475bd43d32628f065..55e3c6c0194a406a8d8581da9fedf542
  	/** Force read-only plan mode at start, auto-approve on the model's first resolve call, then switch to execute. */
  	planYolo?: PlanYolo;
 diff --git a/packages/coding-agent/src/session/agent-session-types.ts b/packages/coding-agent/src/session/agent-session-types.ts
-index 9237d9a59a5a225853258c20c4972cbd1a51f37b..b1e77354e5378debec6e3edb938e915f40d98019 100644
+index 9237d9a..b1e7735 100644
 --- a/packages/coding-agent/src/session/agent-session-types.ts
 +++ b/packages/coding-agent/src/session/agent-session-types.ts
 @@ -78,12 +78,13 @@ export interface AsyncJobSnapshot {
@@ -497,7 +501,7 @@ index 9237d9a59a5a225853258c20c4972cbd1a51f37b..b1e77354e5378debec6e3edb938e915f
  
  /**
 diff --git a/packages/coding-agent/src/session/agent-session.ts b/packages/coding-agent/src/session/agent-session.ts
-index d94fc2ccec0e9fb199cf42de9b37154fb23490bd..ccb54bdb3738ab3967c06218ab2b89e6e965246f 100644
+index d94fc2c..ccb54bd 100644
 --- a/packages/coding-agent/src/session/agent-session.ts
 +++ b/packages/coding-agent/src/session/agent-session.ts
 @@ -1241,8 +1241,8 @@ export class AgentSession {
@@ -569,10 +573,10 @@ index d94fc2ccec0e9fb199cf42de9b37154fb23490bd..ccb54bdb3738ab3967c06218ab2b89e6
  			// Build messages array (session context, eager todo prelude, then active prompt message)
 diff --git a/packages/coding-agent/src/session/prewalk-review.ts b/packages/coding-agent/src/session/prewalk-review.ts
 new file mode 100644
-index 0000000000000000000000000000000000000000..decfa3e76a543333d4e4b80444e2013dce6ad68c
+index 0000000..2588d5f
 --- /dev/null
 +++ b/packages/coding-agent/src/session/prewalk-review.ts
-@@ -0,0 +1,316 @@
+@@ -0,0 +1,318 @@
 +import type { AgentMessage, AgentToolResult, AgentTurnEndContext } from "@oh-my-pi/pi-agent-core";
 +import { invalidateMessageCache } from "@oh-my-pi/pi-agent-core/compaction";
 +import type { ResolvedApprovedPlan } from "../plan-mode/approved-plan";
@@ -679,6 +683,8 @@ index 0000000000000000000000000000000000000000..decfa3e76a543333d4e4b80444e2013d
 +
 +	#instruct(liveMessages?: AgentMessage[]): void {
 +		this.#clearInstructions(liveMessages);
++		const activeNotice =
++			"Reviewed Prewalk is already active for this turn. Treat the current user message as its planning request or continuation. Never ask the user to run /prewalk or /prewalk restart. ";
 +		const content =
 +			this.#state.phase === "draft"
 +				? `Reviewed Prewalk: DRAFT phase. Inspect the user's request and relevant code, then write a complete implementation plan to ${this.#state.planFilePath}. Include scope, assumptions, acceptance criteria, risks and unresolved intent. Do not implement. Another model will challenge the plan and ask the user before implementation. Submit the draft by writing "prewalk" to xd://propose. Draft submission is NOT approval.`
@@ -693,7 +699,7 @@ index 0000000000000000000000000000000000000000..decfa3e76a543333d4e4b80444e2013d
 +		this.#host.agent.steer({
 +			role: "custom",
 +			customType: PREWALK_REVIEW_CONTEXT_TYPE,
-+			content: content + resumeNote,
++			content: activeNotice + content + resumeNote,
 +			display: false,
 +			attribution: "agent",
 +			timestamp: Date.now(),
@@ -890,7 +896,7 @@ index 0000000000000000000000000000000000000000..decfa3e76a543333d4e4b80444e2013d
 +	}
 +}
 diff --git a/packages/coding-agent/src/session/prewalk.ts b/packages/coding-agent/src/session/prewalk.ts
-index 2e5a813cf7851a1d1642a4f1a14fe073f9ffd3ad..5ac57a20aa8b43d96587e279a5f7ee53505164b0 100644
+index 2e5a813..5ac57a2 100644
 --- a/packages/coding-agent/src/session/prewalk.ts
 +++ b/packages/coding-agent/src/session/prewalk.ts
 @@ -4,7 +4,7 @@ import type { Model, ToolResultMessage } from "@oh-my-pi/pi-ai";
@@ -1193,7 +1199,7 @@ index 2e5a813cf7851a1d1642a4f1a14fe073f9ffd3ad..5ac57a20aa8b43d96587e279a5f7ee53
  	}
  }
 diff --git a/packages/coding-agent/src/session/session-tools.ts b/packages/coding-agent/src/session/session-tools.ts
-index a312929c62dbe7072e194416c2dee94719fb9b78..0f2bf52bd564e82001e0eb40c9c0a175008fcad8 100644
+index a312929..0f2bf52 100644
 --- a/packages/coding-agent/src/session/session-tools.ts
 +++ b/packages/coding-agent/src/session/session-tools.ts
 @@ -21,6 +21,7 @@ import { invalidateToolSchemaMetadata } from "../modes/utils/context-usage";
@@ -1229,7 +1235,7 @@ index a312929c62dbe7072e194416c2dee94719fb9b78..0f2bf52bd564e82001e0eb40c9c0a175
  			enabledToolNames: toolNames,
  			evalTransportAvailable: this.#hasCodeModeEvalTransport(),
 diff --git a/packages/coding-agent/src/slash-commands/builtin-modes.ts b/packages/coding-agent/src/slash-commands/builtin-modes.ts
-index 9b7078c1a7379f426422022905ebc129e96f4290..0ed376a63ca79f428c9896689ae0e42642ec66ce 100644
+index 9b7078c..0ed376a 100644
 --- a/packages/coding-agent/src/slash-commands/builtin-modes.ts
 +++ b/packages/coding-agent/src/slash-commands/builtin-modes.ts
 @@ -3,6 +3,8 @@ import {
@@ -1329,7 +1335,7 @@ index 9b7078c1a7379f426422022905ebc129e96f4290..0ed376a63ca79f428c9896689ae0e426
  			}
  			return commandConsumed();
 diff --git a/packages/coding-agent/src/tools/write.ts b/packages/coding-agent/src/tools/write.ts
-index ea9e2f2cd4969c31fc1613cbcbcb68b8fd763c9b..361a542e7291f47dc9bf737cbee755297eff78bd 100644
+index ea9e2f2..361a542 100644
 --- a/packages/coding-agent/src/tools/write.ts
 +++ b/packages/coding-agent/src/tools/write.ts
 @@ -1229,6 +1229,17 @@ export class WriteTool implements AgentTool<typeof writeSchema, WriteToolDetails
@@ -1352,10 +1358,10 @@ index ea9e2f2cd4969c31fc1613cbcbcb68b8fd763c9b..361a542e7291f47dc9bf737cbee75529
  			const { text: cleanContent, stripped } = stripWriteContent(this.session, content);
 diff --git a/packages/coding-agent/test/agent-session-prewalk-review.test.ts b/packages/coding-agent/test/agent-session-prewalk-review.test.ts
 new file mode 100644
-index 0000000000000000000000000000000000000000..42ae9f686debbfcf4849d59b1baf2771a87f9f7b
+index 0000000..a3eb1e0
 --- /dev/null
 +++ b/packages/coding-agent/test/agent-session-prewalk-review.test.ts
-@@ -0,0 +1,411 @@
+@@ -0,0 +1,450 @@
 +import { afterEach, beforeAll, describe, expect, it } from "bun:test";
 +import * as path from "node:path";
 +import { Effort, type ToolResultMessage } from "@oh-my-pi/pi-ai";
@@ -1527,6 +1533,45 @@ index 0000000000000000000000000000000000000000..42ae9f686debbfcf4849d59b1baf2771
 +		expect(run.thinkingLevels.slice(0, 5)).toEqual(Array(5).fill(Effort.XHigh));
 +		expect(JSON.stringify(run.contexts[5])).toContain("User explicitly confirmed an exclamation mark.");
 +		expect(await Bun.file(path.join(run.cwd, "greeting.txt")).text()).toBe("Hello!");
++	});
++
++	it("keeps a restarted direct-planning review armed through the next prompt", async () => {
++		const run = await setup(
++			[
++				call("initial-question", "ask", question),
++				call("initial-plan", "write", { path: "local://prewalk-plan.md", content: clarified }),
++				call("initial-handoff", "write", { path: "xd://propose", content: "prewalk" }),
++				call("initial-implementation", "write", { path: "greeting.txt", content: "Hello!" }),
++				{ content: ["Initial implementation complete."] },
++				{ content: ["Continuing the restarted review."] },
++			],
++			{ sameReviewer: true },
++		);
++		await run.session.prompt("Complete the first reviewed slice.");
++		expect(run.session.getPrewalkState()).toBeUndefined();
++		expect(run.session.model?.id).toBe(run.target.id);
++
++		const firstRestartCall = run.contexts.length;
++		expect(
++			await run.session.restartPrewalk(run.primary, Effort.XHigh, run.target, undefined, {
++				model: run.primary,
++				thinkingLevel: Effort.XHigh,
++			}),
++		).toBe("armed");
++		expect(run.session.model?.id).toBe(run.primary.id);
++		expect(run.session.getPrewalkState()?.target.id).toBe(run.target.id);
++
++		await run.session.prompt("Continue with the next slice.");
++
++		const restartedModels = run.models.slice(firstRestartCall);
++		expect(restartedModels.length).toBeGreaterThan(0);
++		expect(restartedModels.every(model => model === run.primary.id)).toBe(true);
++		const restartedContext = JSON.stringify(run.contexts[firstRestartCall]);
++		expect(restartedContext).toContain("Reviewed Prewalk is already active for this turn.");
++		expect(restartedContext).toContain("Never ask the user to run /prewalk or /prewalk restart.");
++		expect(restartedContext).toContain("Reviewed Prewalk: PLANNING phase");
++		expect(run.session.getPlanModeState()?.strict).toBe(true);
++		expect(run.session.getPrewalkState()?.target.id).toBe(run.target.id);
 +	});
 +
 +	it("records an answer before the first plan without approving the same tool batch", async () => {
@@ -1768,7 +1813,7 @@ index 0000000000000000000000000000000000000000..42ae9f686debbfcf4849d59b1baf2771
 +	});
 +});
 diff --git a/packages/coding-agent/test/plan-autosave.test.ts b/packages/coding-agent/test/plan-autosave.test.ts
-index 1550aaba49b958970b38b8a7bca33f106ff7809c..824de38a7e8880675b227bfce7e08ebbf71ae684 100644
+index 1550aab..824de38 100644
 --- a/packages/coding-agent/test/plan-autosave.test.ts
 +++ b/packages/coding-agent/test/plan-autosave.test.ts
 @@ -176,6 +176,7 @@ describe("plan-yolo approval autosave", () => {
@@ -1780,7 +1825,7 @@ index 1550aaba49b958970b38b8a7bca33f106ff7809c..824de38a7e8880675b227bfce7e08ebb
  			getActiveToolNames: () => [],
  			getEnabledToolNames: () => [],
 diff --git a/packages/coding-agent/test/prewalk-startup-degradation.test.ts b/packages/coding-agent/test/prewalk-startup-degradation.test.ts
-index 1ca370edae8b7e6fab514f766e8e580f9f7878e0..b9bc786c40dcdc34932114bb91b3551d92de58fe 100644
+index 1ca370e..b9bc786 100644
 --- a/packages/coding-agent/test/prewalk-startup-degradation.test.ts
 +++ b/packages/coding-agent/test/prewalk-startup-degradation.test.ts
 @@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, test, vi } from "bun:
