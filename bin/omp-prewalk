@@ -11,7 +11,7 @@ if not launcher.is_file():
 os.execv(str(launcher), [
     str(launcher),
     "--config", str(root / "prewalk-review.yml"),
-    "--extension", str(root / "prewalk/luna-priority.ts"),
+    "--extension", str(root / "extensions/luna-priority.ts"),
     "--extension", str(root / "prewalk/workflow"),
     *sys.argv[1:],
 ])
