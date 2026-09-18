@@ -18,8 +18,6 @@ cycleOrder:
   - smol
   - task
   - designer
-prewalk:
-  enabled: false
 task:
   agentModelOverrides:
     scout: "@default"

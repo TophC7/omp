@@ -13,7 +13,6 @@ last-changelog-version
 install-id
 config.yml.lock
 custom-session-files/
-.prewalk-source
 __pycache__/
 
 # Credentials and local environment
