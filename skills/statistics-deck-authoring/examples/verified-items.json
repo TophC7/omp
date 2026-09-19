@@ -1,0 +1,125 @@
+{
+  "items": [
+    {
+      "id": "center-clear-mode",
+      "type": "center",
+      "data": [12, 18, 18, 21, 25, 30],
+      "places": 1,
+      "key": {"mean": 20.7, "median": 19.5, "mode": [18], "range": 18}
+    },
+    {
+      "id": "center-no-mode",
+      "type": "center",
+      "data": [2, 4, 6, 8],
+      "places": 1,
+      "key": {"mean": 5, "median": 5, "mode": "none", "range": 6}
+    },
+    {
+      "id": "center-tied-modes",
+      "type": "center",
+      "data": [1, 1, 2, 2, 3],
+      "places": 1,
+      "key": {"mean": 1.8, "median": 2, "mode": [1, 2], "range": 2}
+    },
+    {
+      "id": "center-all-values-tied-modes",
+      "type": "center",
+      "data": [2, 2, 5, 5],
+      "places": 1,
+      "key": {"mean": 3.5, "median": 3.5, "mode": [2, 5], "range": 3}
+    },
+    {
+      "id": "outlier-before-after",
+      "type": "outlier_effect",
+      "data": [4, 6, 6, 7, 8, 9, 10, 30],
+      "outlier": 30,
+      "places": 1,
+      "key": {
+        "without": {"mean": 7.1, "median": 7, "mode": [6], "range": 6},
+        "with": {"mean": 10, "median": 7.5, "mode": [6], "range": 26}
+      }
+    },
+    {
+      "id": "outlier-iqr",
+      "type": "outliers_iqr",
+      "data": [1, 2, 2, 3, 4, 5, 6, 7, 8, 30],
+      "key": [30]
+    },
+    {
+      "id": "pie-amount-and-extremes",
+      "type": "percent_of_total",
+      "total": 820,
+      "percents": {
+        "History": 10,
+        "Mathematics": 30,
+        "Physics": 25,
+        "Chemistry": 20,
+        "English": 15
+      },
+      "queries": [
+        {"kind": "amount", "labels": ["Mathematics"]},
+        {"kind": "percent", "labels": ["History", "English"]},
+        {"kind": "max"},
+        {"kind": "min"}
+      ],
+      "key": [246, 25, "Mathematics", "History"]
+    },
+    {
+      "id": "histogram-frequency-and-percent",
+      "type": "histogram",
+      "bins": {
+        "68-70": 2,
+        "71-73": 3,
+        "74-76": 5,
+        "77-78": 9,
+        "79-80": 4,
+        "81-82": 1
+      },
+      "queries": [
+        {"kind": "total"},
+        {"kind": "count_in", "bins": ["74-76", "77-78"]},
+        {"kind": "percent_in", "bins": ["74-76", "77-78", "79-80"]},
+        {"kind": "max"},
+        {"kind": "min"}
+      ],
+      "key": [24, 14, 75, "77-78", "81-82"]
+    },
+    {
+      "id": "simple-probability",
+      "type": "probability",
+      "favorable": 9,
+      "total": 25,
+      "key": "9/25"
+    },
+    {
+      "id": "compound-independent",
+      "type": "compound",
+      "factors": ["3/6", "2/5"],
+      "key": "1/5"
+    },
+    {
+      "id": "compound-no-replacement",
+      "type": "compound",
+      "factors": ["5/20", "4/19"],
+      "key": "1/19"
+    },
+    {
+      "id": "permutation",
+      "type": "counting",
+      "expr": "P(8,3)",
+      "key": 336
+    },
+    {
+      "id": "combination",
+      "type": "counting",
+      "expr": "C(10,4)",
+      "key": 210
+    },
+    {
+      "id": "factorial-expression",
+      "type": "counting",
+      "expr": "5!+4!",
+      "key": 144
+    }
+  ]
+}
